@@ -1,0 +1,39 @@
+# inject the sidecar to the repo server
+# ref: https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/#3-register-the-plugin-sidecar
+- op: add
+  path: /spec/template/spec/containers/-
+  value:
+    name: cmp-kpt
+    image: index.docker.io/bluebrown/argocd-cmp-kpt
+    command: [/var/run/argocd/argocd-cmp-server]
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 1000m
+        memory: 256Mi
+    volumeMounts:
+      # mount the var files and plugins directory
+      # in order to get access to the entrypoint,
+      # allow communication between cmp and repo server
+      # via a socket, and register the plugin
+      - name: var-files
+        mountPath: /var/run/argocd
+      - name: plugins
+        mountPath: /home/argocd/cmp-server/plugins
+      - name: cmp-tmp
+        mountPath: /tmp
+# create a volume for tmp files since we don't have
+# write permission on the root file system
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: cmp-tmp
+    emptyDir: {}
